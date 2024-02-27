@@ -139,26 +139,26 @@ class Controller:
 
     # Functionality for Button that creates course
     def SaveCourse(self):
-        
-        course_name = self.ui.CourseName.text()                                 # Retrieves course name from LineEdit
-        course_code = self.ui.CourseCode.text()                                 # Retrieves course code from LineEdit
-        if course_code and course_name:
-            course = Course(course_name,course_code)                                # Creates Course object 
+        try:
+            course_name = self.ui.CourseName.text()                                 # Retrieves course name from LineEdit
+            course_code = self.ui.CourseCode.text()                                 # Retrieves course code from LineEdit
+            if course_code and course_name:
+                course = Course(course_name, course_code)                            # Creates Course object 
 
-            self.ClearCourseCode_LineEdit()                                         # Clears course name upon clicking save 
-            self.ClearCourseName_LineEdit()                                         # Clears course code upon clicking save 
-            
-        
-            if  self.course_operations.add_course(course):                          # add_course function is boolen because it also serves a duplicated checker
-                self.ui.AddCourseError.setText("")                                  # When an added course is a duplicate it executes and sends true
+                self.ClearCourseCode_LineEdit()                                     # Clears course name upon clicking save 
+                self.ClearCourseName_LineEdit()                                     # Clears course code upon clicking save 
+
+                if self.course_operations.add_course(course):                        # add_course function is boolean because it also serves a duplicate checker
+                    self.ui.AddCourseError.setText("")                               # When an added course is a duplicate it executes and sends true
+                else:
+                    self.ui.AddCourseError.setText("Error: Course already exists")   # When a duplicate is found it sends false causing for an error to pop up
+
+                self.UpdateComboBox()                                                # Update changes in the comboBox
+                self.UpdateCourseTable()                                             # Update changes in the Table
             else:
-                self.ui.AddCourseError.setText("Error: Course already exists")      # When a duplicate is found it sends false causing for an error to pop up
-
-            self.UpdateComboBox()                                                   # Update changes in the comboBox
-            self.UpdateCourseTable()                                                # Update changes in the Table
-        else:
-            QMessageBox.information(self.main_window, "Insufficeint Arguements", "Please fill in all required items.")
-
+                QMessageBox.information(self.main_window, "Insufficient Arguments", "Please fill in all required items.")
+        except Exception as e:
+            QMessageBox.critical(self.main_window, "Error", f"An error occurred: {str(e)}")
 
 
 
@@ -190,113 +190,119 @@ class Controller:
 
     # Function that handles the change in course code and updates it
     # Also includes updating the students csv
+
     def edit_course_code(self, item):
-        if item.column() == 1:  # Assuming course code column is at index 0
-                                                                                                        
-            current_course_code = item.text()                                                                                                             # Get the current course code
-            
-            
-            new_course_code, ok = QInputDialog.getText(self.main_window, 'Edit Course Code', 'Enter new course code:', text=current_course_code)          # Create and initialize the input dialog where user promts new course code
-            
-           
-            if new_course_code == current_course_code:                                                                                                    # If same course code is prompted, erorr messageBox is displayed
+        try:
+            if item.column() == 1:  # Assuming course code column is at index 1
+                current_course_code = item.text()  # Get the current course code
+
+                new_course_code, ok = QInputDialog.getText(self.main_window, 'Edit Course Code', 'Enter new course code:', text=current_course_code)  # Create and initialize the input dialog where user prompts new course code
+
+                if new_course_code == current_course_code:  # If same course code is prompted, error messageBox is displayed
+                    self.SameCourseCodeError()
+                    return
+                    
+                if new_course_code in [course.course_code for course in self.course_operations.courses.values()]:  # If existing course code is prompted, error messageBox is displayed
+                    self.CourseCodeAlreadyExistsError()
+                    return
+
+                if ok and new_course_code:  # If there seems to be no problem, proceeds to update the course code
+                    row = item.row()  # Get the row index of the edited item
+                    course_name = self.ui.TCourse.item(row, 0).text()  # Using the row, get the corresponding course name from column 0
+
+                    if course_name in self.course_operations.courses:  # Checks if course name is present in the courses dictionary
+                        course = self.course_operations.courses[course_name]  # If so, then using the course name as a key, we access it in the dictionary
+                        course.course_code = new_course_code  # And update its course code
+
+                        for student in self.student_operations.students.values():  # Handles the update for students, Goes through all items in students Dictionary
+                            if student.Course_code == current_course_code:  # If a student has that course code
+                                student.Course_code = new_course_code  # It gets updated with the new one
+
+                        # Save changes to CSV
+                        self.course_operations.save_courses_to_csv()  # Calls the course operations to save changes after the update
+                        self.student_operations.save_students_to_csv()  # Calls the student operations to reflect changes after the update
+                        self.UpdateComboBox()  # Updates ComboBox in Student Creation UI
+
+                        item.setText(new_course_code)
+                        self.UpdateStudentTableSorted()  # Updates student table UI for every process created
+                        QMessageBox.information(None, "Course Updates", "Course Code Update successfully")  # Signals complete course code edit
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"An error occurred: {str(e)}")
+            # Handle specific error cases with error message boxes
+            if "Same Course code input" in str(e):
                 self.SameCourseCodeError()
-                return
-                
-            if new_course_code in [course.course_code for course in self.course_operations.courses.values()]:                                             # If existing course code is prompted, error messageBox is displayed
+            elif "Course code already exists." in str(e):
                 self.CourseCodeAlreadyExistsError()
-                return
-
-
-            if ok and new_course_code:                                                                                                                    # If there seems to be no problem, proceeds to update the course code 
-                
-                row = item.row()                                                                                                                          # Get the row index of the edited item
-                course_name = self.ui.TCourse.item(row, 0).text()                                                                                         # Using the row, get the corresponding course name from column 0
-                
-                if course_name in self.course_operations.courses:                                                                                         # Checks if course name is present in the courses dictionary
-                    course = self.course_operations.courses[course_name]                                                                                  # If so, then using the course name as a key, we access it in the dictionary
-                    course.course_code = new_course_code                                                                                                  # And update its course code
-                    
-                   
-                    for student in self.student_operations.students.values():                                                                              # Handles the update for studnets, Goes through all items in students Dictionary
-                        if student.Course_code == current_course_code:                                                                                    # If a student has that course code
-                            student.Course_code = new_course_code                                                                                         # It gets updated with the new one
-
-                    # Save changes to CSV
-                    self.course_operations.save_courses_to_csv()                                                                                          # Calls the course operations to save changes after the update
-                    self.student_operations.save_students_to_csv()                                                                                        # Calls the student operations to reflect changes after the update
-                    self.UpdateComboBox()                                                                                                                 # Updates ComboBox in Student Creation UI
-                
-                    
-                    item.setText(new_course_code)                                                                                           
-                    self.UpdateStudentTableSorted()                                                                                                       # Updates student table UI for every process created                       
-                    QMessageBox.information(None, "Course Updates", "Course Code Update successfully")                                                    # Signals complete course code edit
-            
     
+
+
 
 
     # Function that handles the change in course name and updates it
-    def edit_course_name(self,item):
-        if item.column() == 0:                                                                                                                            # Checks if the item is from the course name column
-            
-            current_course_name = item.text()                                                                                                             # Gets the current course name
+    def edit_course_name(self, item):
+        try:
+            if item.column() == 0:  # Checks if the item is from the course name column
+                current_course_name = item.text()  # Gets the current course name
+
+                new_course_name, ok = QInputDialog.getText(self.main_window, 'Edit Course Name', 'Enter new course name:', text=current_course_name)  # Creates and initializes inputDialog where user prompts the new course
+
+                if new_course_name == current_course_name:  # If same course name is prompted, error messageBox is displayed
+                    self.SameCourseNameError()
+                    return
+                
+                if new_course_name in [course.course_name.strip().lower() for course in self.course_operations.courses.values()]:  # If existing course name is prompted, error messageBox is displayed
+                    self.CourseNameAlreadyExistsError()
+                    return
+
+                if ok and new_course_name:  # If there seems to be no problem proceeds to update the course name
+                    Jnew_course_name = new_course_name.strip().lower()  # For Uniformity, the new Course name is justified
+                    if current_course_name in self.course_operations.courses:  # Checks if current_course code is in the dictionary 
+                        course = self.course_operations.courses.pop(current_course_name)  # If so, it pops the current course name
+                        course.course_name = Jnew_course_name  # Store the new course name
+
+                        self.course_operations.courses[Jnew_course_name] = course  # Adds the created course object back to the dictionary using the new course name as its key
+                        self.course_operations.save_courses_to_csv()  # Calls the course operations to save changes after the update
+                        # Updates ComboBox in Student Creation UI
+
+                        item.setText(Jnew_course_name)  # Update the Courses Display Table
+                        self.UpdateCourseTable()  # Updates the student table display
+                        QMessageBox.information(None, "Course Updates", "Course Name Update successfully")  # Signals complete course name edit
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"An error occurred: {str(e)}")
             
 
-            new_course_name, ok = QInputDialog.getText(self.main_window, 'Edit Course Name', 'Enter new course name:', text=current_course_name)          # Creates and initializes inputDialog where user prompts the new course
-
-            if new_course_name == current_course_name:                                                                                                    # If same course name is prompted, erorr messageBox is displayed
-                self.SameCourseNameError()
-                return
-            
-            if new_course_name in [course.course_name.strip().lower() for course in self.course_operations.courses.values()]:                             # If existing course name is prompted, error messageBox is displayed
-                self.CourseNameAlreadyExistsError()
-                return
-    
-            if ok and new_course_name:                                                                                                                    # If there seems to be no problem proceeds to update the course name
-            
-                Jnew_course_name = new_course_name.strip().lower()                                                                                        # For Uniformality, the new Course name is justified
-                if current_course_name in self.course_operations.courses:                                                                                 # Checks if current_course code is in the dictionary 
-                    course = self.course_operations.courses.pop(current_course_name)                                                                      # If so, it pops the current course name
-                    course.course_name = Jnew_course_name                                                                                                 # Store the new course name
 
 
-                    self.course_operations.courses[Jnew_course_name] = course                                                                             # Adds the created course object back to the dictionary using the new course name as its key
-                    self.course_operations.save_courses_to_csv()                                                                                          # Calls the course operations to save changes after the update
-                                                                                                                                                          # Updates ComboBox in Student Creation UI
-                    
-                    item.setText(Jnew_course_name)                                                                                                        # Update the Courses Display Table
-                    self.UpdateCourseTable()                                                                                                              # Updates the student table display
-                    QMessageBox.information(None, "Course Updates", "Course Name Update successfully")                                                    # Signals complete course name edit
-   
 
 
     # Function that gets the course to be deleted
     # Also updates the Student and Course table UI for changes
     def deleteCourse(self, item):
-        row = item.row()                                                                # Get the row of the item when a user clicks on that row
-        course_name_item = self.ui.TCourse.item(row, 0)                                 # Get the name of the item (course name)
-        course_code_item = self.ui.TCourse.item(row, 1)                                 # Gets the course code of the item; to be used in student table update
+        try:
+            row = item.row()                                                                # Get the row of the item when a user clicks on that row
+            course_name_item = self.ui.TCourse.item(row, 0)                                 # Get the name of the item (course name)
+            course_code_item = self.ui.TCourse.item(row, 1)                                 # Gets the course code of the item; to be used in student table update
+            
+            if course_name_item:                                                            # If course_name_item is already filled-in proceeds to deletion
+                course_name = course_name_item.text()                                       # Converts QwidgetItem to text so we could use it as argument for delete function
+                course_code = course_code_item.text()                                       # Converts QwidfgetItem to text for condition making in student table
         
-        if course_name_item:                                                            # If course_name_item is already filled-in proceeds to deletion
-            course_name = course_name_item.text()                                       # Converts QwidgetItem to text so we could use it as argument for delete function
-            course_code = course_code_item.text()                                       # Converts QwidfgetItem to text for condition making in student table
-    
-            # Find the students enrolled in the deleted course and update their enrollment status
-            for i in range(self.ui.TStudent.rowCount()):
-                course_code_item = self.ui.TStudent.item(i,5)                           # Get the course code item for the current student
-                if course_code_item and course_code_item.text() == course_code:         # Checks if there are course codes in the student table that is equal to the course code of the course we want to delete
-                    course_code_item.setText("Not Enrolled")                            # Update the course code to "Not Enrolled"
+                # Find the students enrolled in the deleted course and update their enrollment status
+                for i in range(self.ui.TStudent.rowCount()):
+                    course_code_item = self.ui.TStudent.item(i, 5)                           # Get the course code item for the current student
+                    if course_code_item and course_code_item.text() == course_code:         # Checks if there are course codes in the student table that is equal to the course code of the course we want to delete
+                        course_code_item.setText("Not Enrolled")                            # Update the course code to "Not Enrolled"
+                        
+                if self.course_operations.delete_course(course_name):                       # Course deletion function is also a boolean function that sends true every time successful process is done
+                    self.ui.TCourse.removeRow(row)                                          # Remove the row from the course table
+                    self.UpdateComboBox()                                                   # Update the course ComboBox in the student table UI
                     
-            
-            
-            if self.course_operations.delete_course(course_name):                       # Course deletion function is also a boolean function that sends true every time successful process is done
-                self.ui.TCourse.removeRow(row)                                          # Remove the row from the course table
-                self.UpdateComboBox()                                                   # Update the course ComboBox in the student table UI
-                
-                QMessageBox.information(self.main_window, "Course Deletion", "Course deleted successfully.")  # Prompts a message when a course deleted properly
-            else:
-                QMessageBox.warning(self.main_window, "Error", "Course deletion Error Occured")                # Prompts a message when course deletion error occurs 
-    
+                    QMessageBox.information(self.main_window, "Course Deletion", "Course deleted successfully.")  # Prompts a message when a course deleted properly
+                else:
+                    QMessageBox.warning(self.main_window, "Error", "Course deletion Error Occurred")                # Prompts a message when course deletion error occurs 
+        except Exception as e:
+            QMessageBox.critical(self.main_window, "Error", f"An error occurred: {str(e)}")
+
 
 
     # Event Handler that calls the delete function everytime a user double clicks row
@@ -349,42 +355,49 @@ class Controller:
         self.ui.ClearStudents.setEnabled(False)
 
 
-    # Function that handles the Searching of courses through course codes
-    def SearchCourseCode(self):
-        courseCode_to_search = self.ui.SearchCourse.text().strip()                                 # Retrieves course code from Search LineEdit
 
-        for course in self.course_operations.courses.values():                                     # Loops through the values in the courses or the course codes
-            if course.course_code == courseCode_to_search:                                         # If that course code exits
-                QMessageBox.information(self.main_window, "Course Information",                    # Information of that course code is displayed in a MessageBox
-                                        f"Course Name: {course.course_name}\n"                     #
-                                        f"Course Code: {course.course_code}\n")                    #
-                return
-        QMessageBox.warning(self.main_window, "Course Not Found", "Course is not registered.")     # If it does not exist in the courses list, prompts error message
+    def SearchCourseCode(self):
+        try:
+            courseCode_to_search = self.ui.SearchCourse.text().strip()  # Retrieves course code from Search LineEdit
+
+            for course in self.course_operations.courses.values():  # Loops through the values in the courses or the course codes
+                if course.course_code == courseCode_to_search:  # If that course code exists
+                    QMessageBox.information(self.main_window, "Course Information",  # Information of that course code is displayed in a MessageBox
+                                            f"Course Name: {course.course_name}\n"
+                                            f"Course Code: {course.course_code}\n")
+                    return
+            QMessageBox.warning(self.main_window, "Course Not Found", "Course is not registered.")  # If it does not exist in the courses list, prompts error message
+        except Exception as e:
+            QMessageBox.critical(self.main_window, "Error", f"An error occurred: {str(e)}")
+
+
 
 
     # Function that handles the updates in UI and confirmation when all courses are cleared
     def ClearCourses(self):
-        reply = QMessageBox.question(self.main_window, 'Clear Courses',                            # Display a confirmation message box
-                                     'Are you sure you want to clear all courses?',
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        
+        try:
+            reply = QMessageBox.question(self.main_window, 'Clear Courses',                            # Display a confirmation message box
+                                        'Are you sure you want to clear all courses?',
+                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-        if reply == QMessageBox.Yes:                                                               # Checks if the user confirms clearing 
-            if self.course_operations.ClearCourses():                                              # Call the ClearCourses method of CourseOperations to clear all courses
-                self.UpdateCourseTable()                                                           # After clearing courses, update the course table to reflect the changes
-                self.UpdateComboBox()                                                              # Update the ComboBox with available courses
+            if reply == QMessageBox.Yes:                                                               # Checks if the user confirms clearing 
+                if self.course_operations.ClearCourses():                                              # Call the ClearCourses method of CourseOperations to clear all courses
+                    self.UpdateCourseTable()                                                           # After clearing courses, update the course table to reflect the changes
+                    self.UpdateComboBox()                                                              # Update the ComboBox with available courses
 
-                # Handles the update in the student table 
-                course_code_column = 5                                                             # Get the index of the course code column in the student table
+                    # Handles the update in the student table 
+                    course_code_column = 5                                                             # Get the index of the course code column in the student table
 
-                for row in range(self.ui.TStudent.rowCount()):                                     # Iterate over each row in the student table
-                    self.ui.TStudent.item(row, course_code_column).setText("Not enrolled")         # Set the value of the course code cell to "Not Enrolled"
+                    for row in range(self.ui.TStudent.rowCount()):                                     # Iterate over each row in the student table
+                        self.ui.TStudent.item(row, course_code_column).setText("Not enrolled")         # Set the value of the course code cell to "Not Enrolled"
 
-                # Display a message box indicating successful deletion
-                QMessageBox.information(self.main_window, "Course Deletion", "Courses all deleted successfully.")
-            else:
-                # Display a message box indicating course Dictionary is empty
-                QMessageBox.information(self.main_window, "Course Deletion", "No courses to delete.")
+                    # Display a message box indicating successful deletion
+                    QMessageBox.information(self.main_window, "Course Deletion", "Courses all deleted successfully.")
+                else:
+                    # Display a message box indicating course Dictionary is empty
+                    QMessageBox.information(self.main_window, "Course Deletion", "No courses to delete.")
+        except Exception as e:
+            QMessageBox.critical(self.main_window, "Error", f"An error occurred: {str(e)}")
 
        
     #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -452,43 +465,44 @@ class Controller:
     
     # Function that adds student in CSV 
     def SaveStudent(self):
-        first_name = self.ui.FirstName.text()                       # Gets the name of the Student 
-        Middle_initial = self.ui.MiddleInitial.text()               # ..
-        Last_name = self.ui.LastName.text()                         # ..
+        try:
+            first_name = self.ui.FirstName.text()                       # Gets the name of the Student 
+            Middle_initial = self.ui.MiddleInitial.text()               # ..
+            Last_name = self.ui.LastName.text()                         # ..
 
-        Id_Number = self.ui.IDNumber.text()                         # Gets the Id Number of the Student
-        Age = self.ui.Age.text()                                    # Gets the Age of the Student
-        Gender = self.ui.Gender.text()                              # Gets the Gender of the Student 
-        Year_Level = self.ui.YearLevel.text()                       # Gets the Year level of the student
-        Course_code = self.ui.Course.currentText()                  # Gets the Course Code of the Student from ComboBox
-        
-        # If all LineEdits are filled 
-        if first_name and Middle_initial and Last_name and Id_Number and Age and Gender and Year_Level and Course_code:        # Condition that checks if all LineEdits are filled  
-            full_name = first_name + " " + Middle_initial + " " + Last_name                                                    # Formats Students Name into one String
-            student = Student(full_name,Age,Id_Number,Year_Level,Gender,Course_code)                                           # A student object is created using the attributes
+            Id_Number = self.ui.IDNumber.text()                         # Gets the Id Number of the Student
+            Age = self.ui.Age.text()                                    # Gets the Age of the Student
+            Gender = self.ui.Gender.text()                              # Gets the Gender of the Student 
+            Year_Level = self.ui.YearLevel.text()                       # Gets the Year level of the student
+            Course_code = self.ui.Course.currentText()                  # Gets the Course Code of the Student from ComboBox
+            
+            # If all LineEdits are filled 
+            if first_name and Middle_initial and Last_name and Id_Number and Age and Gender and Year_Level and Course_code:        # Condition that checks if all LineEdits are filled  
+                full_name = first_name + " " + Middle_initial + " " + Last_name                                                    # Formats Students Name into one String
+                student = Student(full_name, Age, Id_Number, Year_Level, Gender, Course_code)                                       # A student object is created using the attributes
 
-            # Clears the LineEdits after Pressing Save Button
-            self.ClearFirstName()
-            self.ClearLastName()
-            self.ClearMidInitial()
-            self.ClearIDNumber()
-            self.ClearAge()
-            self.ClearGender()
-            self.ClearYearlevel()
+                # Clears the LineEdits after Pressing Save Button
+                self.ClearFirstName()
+                self.ClearLastName()
+                self.ClearMidInitial()
+                self.ClearIDNumber()
+                self.ClearAge()
+                self.ClearGender()
+                self.ClearYearlevel()
 
+                if self.student_operations.add_student(student):                                                           # Sends student in student operation for deletion
+                    QMessageBox.information(self.main_window, "Enrollment Successful", "Student Enrolled Successfully.")    # Prompts message for every student successfully enrolled 
+                else:
+                    QMessageBox.information(self.main_window, "Enrollment Error", "Student Already Enrolled.")              # If there are errors in the Add Student operations, this error message will be shown
 
-
-            if  self.student_operations.add_student(student):                                                           # Sends student in student operation for deletion
-                QMessageBox.information(self.main_window, "Enrollment Successful", "Student Enrolled Successfully.")    # Prompts message for every student successfully enrolled 
+                self.UpdateStudentTableSorted()                                                                             # Updates Student Table when the process is finished
+            
             else:
-                QMessageBox.information(self.main_window, "Enrollment Error", "Student Already Enrolled.")              # If there are errors in the Add Student operations, this error message will be shown
-
-            self.UpdateStudentTableSorted()                                                                             # Updates Student Table when the process is finshed
-        
-        else:
-            QMessageBox.information(self.main_window, "Insufficeint Arguements", "Please fill in all required items.")  # If LineEdits are not fully filled then this error message will display  
-
+                QMessageBox.information(self.main_window, "Insufficient Arguments", "Please fill in all required items.")     # If LineEdits are not fully filled then this error message will display  
+        except Exception as e:
+            QMessageBox.critical(self.main_window, "Error", f"An error occurred: {str(e)}")
     
+
     '''
     def SameStudentNameError(self):
         message = "Same Student name input"
@@ -501,33 +515,38 @@ class Controller:
 
 
     # Function that edits student's name and updates the csv and UI
-    def EditStudentName(self,item):
-        if item.column() == 0:                                  # Retrieves the Item column of the clicked TableWidgetIem
-            current_student_name = item.text()                  # Gets the name of the student 
+    def EditStudentName(self, item):
+        try:
+            if item.column() == 0:                                  # Retrieves the Item column of the clicked TableWidgetIem
+                current_student_name = item.text()                  # Gets the name of the student 
 
+                
+                new_student_name, ok = QInputDialog.getText(self.main_window, 'Edit Student Name', 'Enter new student name:', text=current_student_name)        # Get the new student name from user input
+
+                if not ok or new_student_name == current_student_name:                                                                                          # Check if the user canceled the input or entered the same name
+                    return
             
-            new_student_name, ok = QInputDialog.getText(self.main_window, 'Edit Student Name', 'Enter new student name:', text=current_student_name)        # Get the new student name from user input
+                Jnew_student_name = new_student_name.strip().lower()                                                                                            # Convert the new student name to lowercase for comparison
 
-            if not ok or new_student_name == current_student_name:                                                                                          # Check if the user canceled the input or entered the same name
-                return
-        
-            Jnew_student_name = new_student_name.strip().lower()                                                                                            # Convert the new student name to lowercase for comparison
+                
+                if Jnew_student_name in [student.Name.strip().lower() for student in self.student_operations.students.values()]:                                # Check if the new name already exists
+                    self.StudentAlreadyEnrolledError()                                                                                                          # Calls function for error message
+                    return
+                
+                # Update the student's name in the dictionary and CSV file
+                if ok and new_student_name:
 
-            
-            if Jnew_student_name in [student.Name.strip().lower() for student in self.student_operations.students.values()]:                                # Check if the new name already exists
-                self.StudentAlreadyEnrolledError()                                                                                                          # Calls function for error message
-                return
-            
-            # Update the student's name in the dictionary and CSV file
-            if ok and new_student_name:
+                    if current_student_name in self.student_operations.students:                        # Check if the current student name exists in the dictionary
+                        student = self.student_operations.students.pop(current_student_name)            # Pop the student object using the current name
+                        student.Name = Jnew_student_name                                                # Update the student's name
+                        self.student_operations.students[Jnew_student_name] = student                   # Add the student back to the dictionary with the new name
+                        self.student_operations.save_students_to_csv()                                  # Save the updated students dictionary to the CSV file
+                        item.setText(Jnew_student_name)                                                 # Update the text of the item in the UI
+                        self.UpdateStudentTableSorted()                                                 # Update the entire list to maintain sorted state
+        except Exception as e:
+            QMessageBox.critical(None, "Error", f"An error occurred: {str(e)}")
 
-                if current_student_name in self.student_operations.students:                        # Check if the current student name exists in the dictionary
-                    student = self.student_operations.students.pop(current_student_name)            # Pop the student object using the current name
-                    student.Name = Jnew_student_name                                                # Update the student's name
-                    self.student_operations.students[Jnew_student_name] = student                   # Add the student back to the dictionary with the new name
-                    self.student_operations.save_students_to_csv()                                  # Save the updated students dictionary to the CSV file
-                    item.setText(Jnew_student_name)                                                 # Update the text of the item in the UI
-                    self.UpdateStudentTableSorted()                                                 # Update the entire list to maintain sorted state
+
 
 
     # Function that Edits the students age and reflects changes to csv and UI
@@ -546,6 +565,7 @@ class Controller:
                     
                     self.ui.TStudent.setItem(row, 1, QTableWidgetItem(new_student_age))             # Reflect changes to the UI by updating the corresponding QTableWidgetItem
                     self.student_operations.save_students_to_csv()                                  # Save changes in the students csv file
+
 
 
     # Function that Edits the students Year level and reflects changes to csv and UI
@@ -585,25 +605,28 @@ class Controller:
     
     # Function that edits student's Id and updates the csv and UI
     def EditStudentId(self, item):
-        if item.column() == 2:                                                                     
-            row = item.row()                                                                        # Get the row of the item being edited
-            student_name_item = self.ui.TStudent.item(row, 0)                                       # Get the name of the student using the item row
-            current_ID = item.text()                                                                # Get the current ID in the table as string
-            new_student_ID, ok = QInputDialog.getText(self.main_window, 'Edit Student ID', 'Enter new student ID', text=current_ID)                     # Get the new student age from user input
+        try:
+            if item.column() == 2:                                                                     
+                row = item.row()                                                                        # Get the row of the item being edited
+                student_name_item = self.ui.TStudent.item(row, 0)                                       # Get the name of the student using the item row
+                current_ID = item.text()                                                                # Get the current ID in the table as string
+                new_student_ID, ok = QInputDialog.getText(self.main_window, 'Edit Student ID', 'Enter new student ID', text=current_ID)                     # Get the new student age from user input
 
-            if student_name_item and ok:
-                student_name = student_name_item.text()                                             # Get the name of the student as string 
+                if student_name_item and ok:
+                    student_name = student_name_item.text()                                             # Get the name of the student as string 
 
-                if new_student_ID.strip() not in [student.Student_id.strip() for student in self.student_operations.students.values()]:                 # Check if the new student ID is unique
-                    if student_name in self.student_operations.students:                                    # Checks if that student name is in the students dictionary
-                        self.student_operations.students[student_name].Student_id = new_student_ID          # Update the student's ID in the dictionary and CSV file
-                        self.ui.TStudent.setItem(row, 2, QTableWidgetItem(new_student_ID))                  # Reflect changes to the UI by updating the corresponding QTableWidgetItem
-                        self.student_operations.save_students_to_csv()                                      # Updates the changes in the students csv file 
-                else:
-                    QMessageBox.warning(self.main_window, "Error", "Student ID already exists.")            # Prompts error message if user enters existing student id
-
+                    if new_student_ID.strip() not in [student.Student_id.strip() for student in self.student_operations.students.values()]:                 # Check if the new student ID is unique
+                        if student_name in self.student_operations.students:                                    # Checks if that student name is in the students dictionary
+                            self.student_operations.students[student_name].Student_id = new_student_ID          # Update the student's ID in the dictionary and CSV file
+                            self.ui.TStudent.setItem(row, 2, QTableWidgetItem(new_student_ID))                  # Reflect changes to the UI by updating the corresponding QTableWidgetItem
+                            self.student_operations.save_students_to_csv()                                      # Updates the changes in the students csv file 
+                    else:
+                        QMessageBox.warning(self.main_window, "Error", "Student ID already exists.")            # Prompts error message if user enters existing student id
+        except Exception as e:
+            QMessageBox.critical(self.main_window, "Error", f"An error occurred: {str(e)}")
 
     
+
     # Function that edits student's Course-code and updates the csv and UI                
     def EditStudentCourseCode(self, item):
         if item.column() == 5:                                                                      # Assuming course code is in column 3
@@ -626,43 +649,47 @@ class Controller:
                     self.ui.TStudent.setItem(row, 5, QTableWidgetItem(selected_course))             # Reflect changes to the UI by updating the corresponding QTableWidgetItem
                     self.student_operations.save_students_to_csv()                                  # Save changes to CSV
                 
-    
-    # Fucntion that handles the searching of a student using their Id and displays it 
+
+
+    # Fucntion that handles the searching of a student using their Id and displays it
     def SearchStudent(self):
-        student_id_to_search = self.ui.SearchName.text().strip()                                    # Retrieves the student id from the LineEdit
+        try:
+            student_id_to_search = self.ui.SearchName.text().strip()                                    # Retrieves the student id from the LineEdit
 
-        for student in self.student_operations.students.values():                                   # Check if the entered student ID is present in the students dictionary
-            if student.Student_id == student_id_to_search:                                          # Gets the student having the same student Id as the one being searched
+            for student in self.student_operations.students.values():                                   # Check if the entered student ID is present in the students dictionary
+                if student.Student_id == student_id_to_search:                                          # Gets the student having the same student Id as the one being searched
 
-                QMessageBox.information(self.main_window, "Student Information",                    # When the student is found, display a messageBox displays its information
-                                        f"Name: {student.Name}\n"
-                                        f"Age: {student.Age}\n"
-                                        f"Year Level: {student.Year_level}\n"
-                                        f"Gender: {student.Gender}\n"
-                                        f"Student ID: {student.Student_id}\n"
-                                        f"Course Code: {student.Course_code}")
-                return                                                                              # Once this display is done, this function ends                                                               
+                    QMessageBox.information(self.main_window, "Student Information",                    # When the student is found, display a messageBox displays its information
+                                            f"Name: {student.Name}\n"
+                                            f"Age: {student.Age}\n"
+                                            f"Year Level: {student.Year_level}\n"
+                                            f"Gender: {student.Gender}\n"
+                                            f"Student ID: {student.Student_id}\n"
+                                            f"Course Code: {student.Course_code}")
+                    return                                                                              # Once this display is done, this function ends                                                               
 
-       
-        QMessageBox.warning(self.main_window, "Student Not Found", "Student is not enrolled.")      # If the student ID is not found, show a message indicating the student is not enrolled
-    
+            QMessageBox.warning(self.main_window, "Student Not Found", "Student is not enrolled.")      # If the student ID is not found, show a message indicating the student is not enrolled
+        except Exception as e:
+            QMessageBox.critical(self.main_window, "Error", f"An error occurred: {str(e)}")
+
 
 
     # Function that deletes a single student and reflect the changes in csv and ui
-    def DeleteStudent(self,item):
+    def DeleteStudent(self, item):
+        try:
+            row = item.row()                                                                            # Get the row of the item being edited
+            StudentName = self.ui.TStudent.item(row, 0)                                                  # Get the name of the student using the item row
+            StudentNametxt = StudentName.text()                                                         # Get the name of the student as string  
 
-        row = item.row()                                                                            # Get the row of the item being edited
-        StudentName = self.ui.TStudent.item(row,0)                                                  # Get the name of the student using the item row
-        StudentNametxt = StudentName.text()                                                         # Get the name of the student as string  
+            if StudentNametxt:  
+                if self.student_operations.deleteStudent(StudentNametxt):                               # Removes student using the deleteStudent function in the students operations
+                    self.ui.TStudent.removeRow(row)                                                     # Clears the row of the deleted student in the table
 
-        if StudentNametxt:  
-            if self.student_operations.deleteStudent(StudentNametxt):                               # Removes student using the deleteStudent function in the students operations
-                self.ui.TStudent.removeRow(row)                                                     # Clears the row of the deleted student in the table
-
-                QMessageBox.information(self.main_window, "Student Unenrollment", "Student Unenrolled successfully.")       # Prompts a message everytime a successful process is made
-            else:
-                QMessageBox.information(self.main_window, "Student Unenrollment", "Student unenrollment failed.")           # Otherwise, prompts an error message
-
+                    QMessageBox.information(self.main_window, "Student Unenrollment", "Student Unenrolled successfully.")       # Prompts a message everytime a successful process is made
+                else:
+                    QMessageBox.information(self.main_window, "Student Unenrollment", "Student unenrollment failed.")           # Otherwise, prompts an error message
+        except Exception as e:
+            QMessageBox.critical(self.main_window, "Error", f"An error occurred: {str(e)}")
     
 
     # Event Handler that calls the delete function everytime a user double clicks row
@@ -678,20 +705,22 @@ class Controller:
 
     # Function that handles the clearing of all students and reflects changes in csv and ui
     def ClearStudents(self):
-        reply = QMessageBox.question(self.main_window, 'Clear Students',                             # Ask for confirmation before clearing all students
-                                     'Are you sure you want to clear all students?',
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        
-        if reply == QMessageBox.Yes:                                                                # If confirmation is triggered, proceeds to the deletion process
-            if self.student_operations.ClearStudents():                                             # Calls the student operations to access the clear students fucntion in the operations class
-                self.UpdateStudentTableSorted()                                                     # Updates the students table after deletion
-                
-                QMessageBox.information(self.main_window, "Students Cleared",                       # Display a message box to indicate successful deletion
-                                        "All students have been cleared.")
-            else:
-                QMessageBox.information(self.main_window, "No Students to Clear",                   # Display a message box indicating that the CSV file is already empty
-                                        "There are no students to clear.")
-
+        try:
+            reply = QMessageBox.question(self.main_window, 'Clear Students',                             # Ask for confirmation before clearing all students
+                                        'Are you sure you want to clear all students?',
+                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            
+            if reply == QMessageBox.Yes:                                                                # If confirmation is triggered, proceeds to the deletion process
+                if self.student_operations.ClearStudents():                                             # Calls the student operations to access the clear students function in the operations class
+                    self.UpdateStudentTableSorted()                                                     # Updates the students table after deletion
+                    
+                    QMessageBox.information(self.main_window, "Students Cleared",                       # Display a message box to indicate successful deletion
+                                            "All students have been cleared.")
+                else:
+                    QMessageBox.information(self.main_window, "No Students to Clear",                   # Display a message box indicating that the CSV file is already empty
+                                            "There are no students to clear.")
+        except Exception as e:
+            QMessageBox.critical(self.main_window, "Error", f"An error occurred: {str(e)}")
     
     #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
         
