@@ -3,7 +3,8 @@ Author: Ian Gabriel Paulmino
 CCC 151 Assignment 1 - Simple Student Information System
 Date of Last commit: March 1, 2024
 
-Short Description on files
+Short Description on files:
+
 1.Course_Student
   - Contains Operations on Students and Courses excluding the edits
   - Contains Class for Student and Course Objects
