@@ -67,9 +67,42 @@ class Controller:
 
         self.ui.ClearCourses.clicked.connect(self.ClearCourses)                 # Button for clearing courses
         self.ui.ClearStudents.clicked.connect(self.ClearStudents)               # Button for clearing students
+
+        self.ui.InstructionsB.clicked.connect(self.Instructions)                # Button for instructions manual 
         
     #---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-        
+    # Special Functions
+    def Instructions(self):
+
+        Semi_Manual = '''
+                                    SSIS INSTRUCTIONS MANUAL
+
+
+        STUDENTS 
+        - Lets you view the table containing all students and is locked by default
+
+        COURSES
+        - Lets you view the table containing all courses and is locked by default
+
+        EDIT (STUDENT & COURSE)
+        - Enables Edit on table
+        - Click on the desired cell to edit
+
+        DELETE (STUDENT & COURSE)
+        - Double Click on the number beside the student/course to delete it 
+
+        CLEAR
+        - Clears entire table
+
+        SEARCH
+        - Allows searching of information in the table               
+                 
+                   
+                   '''
+        QMessageBox.information(None, "Instructions", Semi_Manual)
+
+        pass    
+    
 
 
 
@@ -155,6 +188,7 @@ class Controller:
 
                 self.UpdateComboBox()                                                # Update changes in the comboBox
                 self.UpdateCourseTable()                                             # Update changes in the Table
+                QMessageBox.information(self.main_window, "Save Course", "Course Added successfully.")
             else:
                 QMessageBox.information(self.main_window, "Insufficient Arguments", "Please fill in all required items.")
         except Exception as e:
@@ -193,38 +227,38 @@ class Controller:
 
     def edit_course_code(self, item):
         try:
-            if item.column() == 1:  # Assuming course code column is at index 1
-                current_course_code = item.text()  # Get the current course code
+            if item.column() == 1:                                                                      # Identify course code column if at index 1
+                current_course_code = item.text()                                                       # Get the current course code
 
                 new_course_code, ok = QInputDialog.getText(self.main_window, 'Edit Course Code', 'Enter new course code:', text=current_course_code)  # Create and initialize the input dialog where user prompts new course code
 
-                if new_course_code == current_course_code:  # If same course code is prompted, error messageBox is displayed
+                if new_course_code == current_course_code:                                              # If same course code is prompted, error messageBox is displayed
                     self.SameCourseCodeError()
                     return
                     
-                if new_course_code in [course.course_code for course in self.course_operations.courses.values()]:  # If existing course code is prompted, error messageBox is displayed
+                if new_course_code in [course.course_code for course in self.course_operations.courses.values()]:                                      # If existing course code is prompted, error messageBox is displayed
                     self.CourseCodeAlreadyExistsError()
                     return
 
-                if ok and new_course_code:  # If there seems to be no problem, proceeds to update the course code
-                    row = item.row()  # Get the row index of the edited item
-                    course_name = self.ui.TCourse.item(row, 0).text()  # Using the row, get the corresponding course name from column 0
+                if ok and new_course_code:                                                              # If there seems to be no problem, proceeds to update the course code
+                    row = item.row()                                                                    # Get the row index of the edited item
+                    course_name = self.ui.TCourse.item(row, 0).text()                                   # Using the row, get the corresponding course name from column 0
 
-                    if course_name in self.course_operations.courses:  # Checks if course name is present in the courses dictionary
-                        course = self.course_operations.courses[course_name]  # If so, then using the course name as a key, we access it in the dictionary
-                        course.course_code = new_course_code  # And update its course code
+                    if course_name in self.course_operations.courses:                                   # Checks if course name is present in the courses dictionary
+                        course = self.course_operations.courses[course_name]                            # If so, then using the course name as a key, we access it in the dictionary
+                        course.course_code = new_course_code                                            # And update its course code
 
-                        for student in self.student_operations.students.values():  # Handles the update for students, Goes through all items in students Dictionary
-                            if student.Course_code == current_course_code:  # If a student has that course code
-                                student.Course_code = new_course_code  # It gets updated with the new one
+                        for student in self.student_operations.students.values():                       # Handles the update for students, Goes through all items in students Dictionary
+                            if student.Course_code == current_course_code:                              # If a student has that course code
+                                student.Course_code = new_course_code                                   # It gets updated with the new one
 
                         # Save changes to CSV
-                        self.course_operations.save_courses_to_csv()  # Calls the course operations to save changes after the update
-                        self.student_operations.save_students_to_csv()  # Calls the student operations to reflect changes after the update
-                        self.UpdateComboBox()  # Updates ComboBox in Student Creation UI
+                        self.course_operations.save_courses_to_csv()                                    # Calls the course operations to save changes after the update
+                        self.student_operations.save_students_to_csv()                                  # Calls the student operations to reflect changes after the update
+                        self.UpdateComboBox()                                                           # Updates ComboBox in Student Creation UI
 
                         item.setText(new_course_code)
-                        self.UpdateStudentTableSorted()  # Updates student table UI for every process created
+                        self.UpdateStudentTableSorted()                                                 # Updates student table UI for every process created
                         QMessageBox.information(None, "Course Updates", "Course Code Update successfully")  # Signals complete course code edit
         except Exception as e:
             QMessageBox.critical(None, "Error", f"An error occurred: {str(e)}")
@@ -241,12 +275,12 @@ class Controller:
     # Function that handles the change in course name and updates it
     def edit_course_name(self, item):
         try:
-            if item.column() == 0:  # Checks if the item is from the course name column
-                current_course_name = item.text()  # Gets the current course name
+            if item.column() == 0:                                                                      # Checks if the item is from the course name column
+                current_course_name = item.text()                                                       # Gets the current course name
 
                 new_course_name, ok = QInputDialog.getText(self.main_window, 'Edit Course Name', 'Enter new course name:', text=current_course_name)  # Creates and initializes inputDialog where user prompts the new course
 
-                if new_course_name == current_course_name:  # If same course name is prompted, error messageBox is displayed
+                if new_course_name == current_course_name:                                              # If same course name is prompted, error messageBox is displayed
                     self.SameCourseNameError()
                     return
                 
@@ -254,18 +288,18 @@ class Controller:
                     self.CourseNameAlreadyExistsError()
                     return
 
-                if ok and new_course_name:  # If there seems to be no problem proceeds to update the course name
-                    Jnew_course_name = new_course_name.strip().lower()  # For Uniformity, the new Course name is justified
-                    if current_course_name in self.course_operations.courses:  # Checks if current_course code is in the dictionary 
-                        course = self.course_operations.courses.pop(current_course_name)  # If so, it pops the current course name
-                        course.course_name = Jnew_course_name  # Store the new course name
+                if ok and new_course_name:                                                              # If there seems to be no problem proceeds to update the course name
+                    Jnew_course_name = new_course_name.strip().lower()                                  # For Uniformity, the new Course name is justified
+                    if current_course_name in self.course_operations.courses:                           # Checks if current_course code is in the dictionary 
+                        course = self.course_operations.courses.pop(current_course_name)                # If so, it pops the current course name
+                        course.course_name = Jnew_course_name                                           # Store the new course name
 
-                        self.course_operations.courses[Jnew_course_name] = course  # Adds the created course object back to the dictionary using the new course name as its key
-                        self.course_operations.save_courses_to_csv()  # Calls the course operations to save changes after the update
-                        # Updates ComboBox in Student Creation UI
+                        self.course_operations.courses[Jnew_course_name] = course                       # Adds the created course object back to the dictionary using the new course name as its key
+                        self.course_operations.save_courses_to_csv()                                    # Calls the course operations to save changes after the update
+                        
 
-                        item.setText(Jnew_course_name)  # Update the Courses Display Table
-                        self.UpdateCourseTable()  # Updates the student table display
+                        item.setText(Jnew_course_name)                                                  # Update the Courses Display Table
+                        self.UpdateCourseTable()                                                        # Updates the student table display
                         QMessageBox.information(None, "Course Updates", "Course Name Update successfully")  # Signals complete course name edit
         except Exception as e:
             QMessageBox.critical(None, "Error", f"An error occurred: {str(e)}")
@@ -358,11 +392,11 @@ class Controller:
 
     def SearchCourseCode(self):
         try:
-            courseCode_to_search = self.ui.SearchCourse.text().strip()  # Retrieves course code from Search LineEdit
+            courseCode_to_search = self.ui.SearchCourse.text().strip()                              # Retrieves course code from Search LineEdit
 
-            for course in self.course_operations.courses.values():  # Loops through the values in the courses or the course codes
-                if course.course_code == courseCode_to_search:  # If that course code exists
-                    QMessageBox.information(self.main_window, "Course Information",  # Information of that course code is displayed in a MessageBox
+            for course in self.course_operations.courses.values():                                  # Loops through the values in the courses or the course codes
+                if course.course_code == courseCode_to_search:                                      # If that course code exists
+                    QMessageBox.information(self.main_window, "Course Information",                 # Information of that course code is displayed in a MessageBox
                                             f"Course Name: {course.course_name}\n"
                                             f"Course Code: {course.course_code}\n")
                     return
@@ -543,6 +577,7 @@ class Controller:
                         self.student_operations.save_students_to_csv()                                  # Save the updated students dictionary to the CSV file
                         item.setText(Jnew_student_name)                                                 # Update the text of the item in the UI
                         self.UpdateStudentTableSorted()                                                 # Update the entire list to maintain sorted state
+                        QMessageBox.information(self.main_window, "Edit Student", "Student name edited successfully.")
         except Exception as e:
             QMessageBox.critical(None, "Error", f"An error occurred: {str(e)}")
 
@@ -565,7 +600,7 @@ class Controller:
                     
                     self.ui.TStudent.setItem(row, 1, QTableWidgetItem(new_student_age))             # Reflect changes to the UI by updating the corresponding QTableWidgetItem
                     self.student_operations.save_students_to_csv()                                  # Save changes in the students csv file
-
+                    QMessageBox.information(self.main_window, "Edit Student", "Student Age edited successfully.")
 
 
     # Function that Edits the students Year level and reflects changes to csv and UI
@@ -583,7 +618,7 @@ class Controller:
                     self.student_operations.students[student_name].Year_level = new_student_Yrlevel # Updates the Year level of the student
                     self.ui.TStudent.setItem(row, 3, QTableWidgetItem(new_student_Yrlevel))         # Reflect changes to the UI by updating the corresponding QTableWidgetItem
                     self.student_operations.save_students_to_csv()                                  # Save the changes in the student csv file
-                
+                    QMessageBox.information(self.main_window, "Edit Student", "Student Year level edited successfully.")
 
 
     # Function that Edits the students Gender and reflects changes to csv and UI
@@ -601,7 +636,7 @@ class Controller:
                     self.student_operations.students[student_name].Gender = new_student_Gender      # Updates the gender of the student
                     self.ui.TStudent.setItem(row, 4, QTableWidgetItem(new_student_Gender))          # Reflect changes to the UI by updating the corresponding QTableWidgetItem
                     self.student_operations.save_students_to_csv()                                  # Updates the changes in the students csv file
-                      
+                    QMessageBox.information(self.main_window, "Edit Student", "Student Gender edited successfully.")
     
     # Function that edits student's Id and updates the csv and UI
     def EditStudentId(self, item):
@@ -619,7 +654,8 @@ class Controller:
                         if student_name in self.student_operations.students:                                    # Checks if that student name is in the students dictionary
                             self.student_operations.students[student_name].Student_id = new_student_ID          # Update the student's ID in the dictionary and CSV file
                             self.ui.TStudent.setItem(row, 2, QTableWidgetItem(new_student_ID))                  # Reflect changes to the UI by updating the corresponding QTableWidgetItem
-                            self.student_operations.save_students_to_csv()                                      # Updates the changes in the students csv file 
+                            self.student_operations.save_students_to_csv()                                      # Updates the changes in the students csv file
+                            QMessageBox.information(self.main_window, "Edit Student", "Student ID edited successfully.") 
                     else:
                         QMessageBox.warning(self.main_window, "Error", "Student ID already exists.")            # Prompts error message if user enters existing student id
         except Exception as e:
@@ -648,7 +684,7 @@ class Controller:
                     self.student_operations.students[student_name].Course_code = selected_course    # Update the student's course code
                     self.ui.TStudent.setItem(row, 5, QTableWidgetItem(selected_course))             # Reflect changes to the UI by updating the corresponding QTableWidgetItem
                     self.student_operations.save_students_to_csv()                                  # Save changes to CSV
-                
+                    QMessageBox.information(self.main_window, "Edit Student", "Student Course Code edited successfully.")
 
 
     # Fucntion that handles the searching of a student using their Id and displays it

@@ -33,7 +33,10 @@ class Ui_MainWindow(object):
         self.CoursesB.setGeometry(QtCore.QRect(600, 30, 111, 31))
         self.CoursesB.setObjectName("CoursesB")
 
-
+        self.InstructionsB = QtWidgets.QPushButton(self.UpperMenu)
+        self.InstructionsB.setGeometry(QtCore.QRect(10, 30, 100, 31))
+        self.InstructionsB.setObjectName("InstructionsB")
+        self.InstructionsB.setText("Instructions")
 
         
 
